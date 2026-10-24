@@ -197,10 +197,10 @@ textarea { min-height: 64px; resize: vertical; }
 
     <section class="panel">
       <h2>Google Sheet log</h2>
-      <p class="hint" style="margin:0 0 12px">Every downloaded bill is also written to your Google Sheet. Set this up once per PC; see apps-script/SETUP.md.</p>
+      <p class="hint" style="margin:0 0 12px">Every downloaded bill is also written to the Velqura Bills Google Sheet. The link is built in; enter the password once on each device.</p>
       <div class="grid">
         <label class="f wide"><span>Web app URL</span><input id="sh_url" placeholder="https://script.google.com/macros/s/.../exec"></label>
-        <label class="f"><span>Secret key</span><input id="sh_key" type="password" autocomplete="off"></label>
+        <label class="f"><span>Password</span><input id="sh_key" type="password" autocomplete="off"></label>
         <div class="f" style="justify-content:flex-end"><div class="row"><button type="button" class="btn" id="sh_save">Save</button><button type="button" class="btn" id="sh_test">Test connection</button></div></div>
       </div>
       <p class="hint" id="sh_status"></p>
@@ -416,12 +416,15 @@ textarea { min-height: 64px; resize: vertical; }
   }
 
   // ---------- Google Sheet log ----------
-  const SH_URL = 'vq-bill-sheet-url', SH_KEY = 'vq-bill-sheet-key', SH_QUEUE = 'vq-bill-sheet-queue';
+  // Built-in Velqura Bill Log deployment. Only the link is in the page; the password is typed once per device.
+  const DEFAULT_SHEET_URL = 'https://script.google.com/macros/s/AKfycbwYvU5FRjDfmAzrYpYpkzh97RLrI-z2Nm_1ReNVBbnFzikcASHJX-3Wq_v5fk51DwzA/exec';
+  // v2 keys: ignore links saved for older deployments.
+  const SH_URL = 'vq-bill-sheet-url-v2', SH_KEY = 'vq-bill-sheet-key', SH_QUEUE = 'vq-bill-sheet-queue';
   const store = {
     get(k) { try { return localStorage.getItem(k) || ''; } catch (e) { return ''; } },
     set(k, v) { try { localStorage.setItem(k, v); } catch (e) {} },
   };
-  function sheetConfig() { return { url: store.get(SH_URL).trim(), key: store.get(SH_KEY) }; }
+  function sheetConfig() { return { url: (store.get(SH_URL) || DEFAULT_SHEET_URL).trim(), key: store.get(SH_KEY) }; }
   function shStatus(text, cls = 'hint') { const el = $('sh_status'); el.className = cls; el.textContent = text; }
 
   function buildPayload(no) {
@@ -449,7 +452,8 @@ textarea { min-height: 64px; resize: vertical; }
   // Apps Script reads the body as text; a text/plain body avoids a CORS preflight.
   async function send(payload) {
     const { url, key } = sheetConfig();
-    if (!url || !key) throw new Error('not set up');
+    if (!url) throw new Error('not set up');
+    if (!key) throw new Error('enter the password in Google Sheet log and press Save');
     const res = await fetch(url, { method: 'POST', body: JSON.stringify({ ...payload, key }) });
     const out = await res.json();
     if (!out.ok) throw new Error(out.error || 'The Sheet refused the bill.');
@@ -493,7 +497,7 @@ textarea { min-height: 64px; resize: vertical; }
     shStatus(failed.length ? `${q.length - failed.length} sent, ${failed.length} still waiting. Reason: ${why}` : `All ${q.length} waiting bill${q.length > 1 ? 's' : ''} sent to Google Sheet.`, failed.length ? 'err' : 'ok');
   }
 
-  $('sh_url').value = store.get(SH_URL);
+  $('sh_url').value = sheetConfig().url;
   $('sh_key').value = store.get(SH_KEY);
   $('sh_save').addEventListener('click', () => {
     store.set(SH_URL, $('sh_url').value.trim()); store.set(SH_KEY, $('sh_key').value);
@@ -518,7 +522,9 @@ textarea { min-height: 64px; resize: vertical; }
   });
   $('sh_retry').addEventListener('click', retryAll);
   setQueue(queue());
-  shStatus(sheetConfig().url ? 'Bills are sent to the Sheet after each download.' : 'Not set up yet. Bills still download as usual.');
+  shStatus(sheetConfig().key
+    ? 'Bills are sent to the Sheet after each download.'
+    : 'Enter the password once and press Save. Until then bills still download, and wait here for the Sheet.', sheetConfig().key ? 'hint' : 'err');
 
   // ---------- Setup ----------
   function today() { const t = new Date(); return new Date(t.getTime() - t.getTimezoneOffset() * 60000).toISOString().slice(0, 10); }
