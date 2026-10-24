@@ -37,6 +37,7 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .panel + .panel { margin-top: 16px; }
 .panel h2 { margin: 0 0 14px; font: 800 15px/20px var(--font-display); display: flex; align-items: center; gap: 8px; }
 .panel h2::before { content: ""; width: 8px; height: 8px; background: var(--brand); }
+[hidden] { display: none !important; }
 .grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px 14px; }
 .grid .wide { grid-column: 1 / -1; }
 @media (max-width: 640px) { .grid { grid-template-columns: minmax(0, 1fr); } }
@@ -485,9 +486,11 @@ textarea { min-height: 64px; resize: vertical; }
     const q = queue();
     if (!q.length) return;
     const failed = [];
-    for (const b of q) { try { await send(b); } catch (e) { failed.push(b); } }
+    let reason = '';
+    for (const b of q) { try { await send(b); } catch (e) { failed.push(b); reason = reason || e.message; } }
     setQueue(failed);
-    shStatus(failed.length ? `${q.length - failed.length} sent, ${failed.length} still waiting.` : `All ${q.length} waiting bill${q.length > 1 ? 's' : ''} sent to Google Sheet.`, failed.length ? 'err' : 'ok');
+    const why = /fetch|network/i.test(reason) ? 'no connection' : reason;
+    shStatus(failed.length ? `${q.length - failed.length} sent, ${failed.length} still waiting. Reason: ${why}` : `All ${q.length} waiting bill${q.length > 1 ? 's' : ''} sent to Google Sheet.`, failed.length ? 'err' : 'ok');
   }
 
   $('sh_url').value = store.get(SH_URL);
