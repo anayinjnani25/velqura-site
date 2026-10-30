@@ -264,6 +264,7 @@ textarea { min-height: 64px; resize: vertical; }
           <select id="d_purpose"><option>Supply (sale)</option><option>Job work</option><option>Sale on approval</option><option>Stock transfer (other than supply)</option><option>Other</option></select>
         </label>
         <label class="f gst-only"><span>Place of supply</span><input id="d_pos" value="Maharashtra (27)"></label>
+        <label class="check gst-only wide" style="align-self:end"><input type="checkbox" id="d_showtax" checked> Show taxable value and GST on the challan</label>
         <label class="f gst-only" id="d_rate_wrap"><span>GST rate for challan</span>
           <select id="d_rate"><option value="5">5%</option><option value="12">12%</option><option value="18" selected>18%</option><option value="28">28%</option></select>
         </label>
@@ -612,15 +613,29 @@ textarea { min-height: 64px; resize: vertical; }
     document.querySelectorAll('.gst-only').forEach(el => { el.hidden = !gst; });
     document.querySelectorAll('#challan .gst-doc').forEach(el => { el.hidden = !gst; });
     document.querySelector('#challan .meta-4').classList.toggle('simple', !gst);
-    $('d_rate_wrap').hidden = !gst || addGst;
+    const showTax = $('d_showtax').checked;
+    $('d_rate_wrap').hidden = !gst || addGst || !showTax;
     $('dcHint').textContent = !gst ? 'Products and quantities only, no prices.'
+      : !showTax ? 'GST details (GSTINs, HSN, purpose, place of supply) with each line\'s value; no tax breakdown.'
       : addGst ? 'Taxable value and GST are taken from the bill.'
       : 'This bill is GST-inclusive, so the challan splits each amount into taxable value + GST at the rate above.';
     const hsnTh = showHsn ? '<th>HSN</th>' : '';
     const hsnTd = (it) => (showHsn ? `<td>${esc(it.hsn)}</td>` : '');
     const qtyCell = (it) => `${fmtNum(it.qty)} ${it.qty === 1 ? 'no' : 'nos'}`;
 
-    if (gst) {
+    if (gst && !showTax) {
+      const value = r2(valid.reduce((a, it) => a + it.amount, 0));
+      $('dc_head').innerHTML = `<tr><th>#</th><th>Description</th>${hsnTh}<th>Pack</th><th class="num">Qty</th><th class="num">Value ₹</th></tr>`;
+      $('dc_rows').innerHTML = valid.map((it, i) => {
+        const pack = it.size ? `${fmtNum(it.size)} ${it.unit}` : '';
+        return `<tr><td>${i + 1}</td><td><div class="prod">${esc(it.prod)}</div></td>${hsnTd(it)}<td>${esc(pack)}</td>
+          <td class="num">${qtyCell(it)}</td><td class="num amt">${inr(it.amount)}</td></tr>`;
+      }).join('') || `<tr><td colspan="6" class="sub">Add an item to start.</td></tr>`;
+      $('dc_totals').innerHTML = `<div><span>Total quantity</span><span class="num">${qtyText}</span></div>
+        <div class="grand"><span>Total value</span><span class="num">${inr(value)}</span></div>`;
+      $('dc_note').textContent = `Goods sent for: ${$('d_purpose').value}. Value as per receipt ${$('r_no').value.trim()}. Received the above goods in good condition.`;
+      $('dc_foot').textContent = 'Delivery challan under Rule 55, CGST Rules 2017 · not a tax invoice.';
+    } else if (gst) {
       const t = challanTax(valid, addGst);
       $('dc_head').innerHTML = `<tr><th>#</th><th>Description</th>${hsnTh}<th class="num">Qty</th><th class="num">Taxable ₹</th><th class="num">GST</th><th class="num">Value ₹</th></tr>`;
       $('dc_rows').innerHTML = t.lines.map((it, i) => {
