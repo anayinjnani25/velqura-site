@@ -62,7 +62,21 @@ textarea { min-height: 64px; resize: vertical; }
 .rc .copy-label { margin-top: 1.5mm; font: 700 6.4pt/1.3 var(--font-display); letter-spacing: .14em; text-transform: uppercase; color: #C9CED3; }
 .rc .meta + .meta { margin-top: 0; border-top: 0; }
 /* Challan: fit a full GST challan on one A5 page. */
-.rc.rc-dc header { padding: 5mm 9mm 4mm; }
+.rc.rc-dc { width: 210mm; min-height: 147mm; }  /* A5 landscape */
+.rc.rc-dc header { padding: 3.5mm 9mm 3mm; }
+.rc.rc-dc header img { width: 44mm; }
+.rc.rc-dc header .t { font-size: 13pt; }
+.rc.rc-dc .parties p { margin-top: .5mm; }
+.rc.rc-dc .dc-metas { display: grid; grid-template-columns: 3fr 4fr; }
+.rc.rc-dc .dc-metas .meta + .meta { border-left: 0; margin-top: 3mm; }
+.rc.rc-dc .dc-metas .meta > div { padding: 1.6mm 2.4mm; }
+.rc.rc-dc tbody td { padding: 1.6mm 2mm; }
+.rc.rc-dc thead th { padding: 1.8mm 2mm; }
+.rc.rc-dc .dc-bottom { flex: 1; display: grid; grid-template-columns: 1fr 66mm; gap: 8mm; align-items: start; }
+.rc.rc-dc .dc-left { display: flex; flex-direction: column; height: 100%; }
+.rc.rc-dc .dc-left .dc-note { margin-top: 2.5mm; }
+.rc.rc-dc .dc-sign { padding-top: 3mm; padding-bottom: 3mm; }
+.rc.rc-dc footer { padding: 2mm 9mm 3mm; }
 .rc.rc-dc main { padding-top: 4mm; }
 .rc.rc-dc .meta { margin-top: 3.5mm; }
 .rc.rc-dc .meta-4 { grid-template-columns: repeat(4, 1fr); }
@@ -73,7 +87,7 @@ textarea { min-height: 64px; resize: vertical; }
 .rc.rc-dc .totals div { padding: .6mm 0; }
 .rc.rc-dc .dc-note { margin-top: 2.5mm; padding: 1.8mm 3mm; }
 .rc.rc-dc .dc-sign { padding-top: 4mm; padding-bottom: 4mm; }
-.rc.rc-dc .dc-box, .rc.rc-dc .stamp { height: 20mm; }
+.rc.rc-dc .dc-box, .rc.rc-dc .stamp { height: 16mm; }
 .rc.rc-dc .stamp { width: 22mm; }
 .c-prod { width: 26%; } .c-size { width: 9%; } .c-unit { width: 9%; } .c-qty { width: 8%; } .c-rate { width: 11%; } .c-basis { width: 13%; } .c-amt { width: 13%; } .c-x { width: 40px; }
 
@@ -164,6 +178,18 @@ textarea { min-height: 64px; resize: vertical; }
 
 <div class="app">
   <form id="form" autocomplete="off" novalidate>
+    <section class="panel">
+      <h2>Google Sheet log</h2>
+      <p class="hint" style="margin:0 0 12px">Every downloaded bill is also written to the Velqura Bills Google Sheet. The link is built in; enter the password once on each device.</p>
+      <div class="grid">
+        <label class="f wide"><span>Web app URL</span><input id="sh_url" placeholder="https://script.google.com/macros/s/.../exec"></label>
+        <label class="f"><span>Password</span><input id="sh_key" type="password" autocomplete="off"></label>
+        <div class="f" style="justify-content:flex-end"><div class="row"><button type="button" class="btn" id="sh_save">Save</button><button type="button" class="btn" id="sh_test">Test connection</button></div></div>
+      </div>
+      <p class="hint" id="sh_status"></p>
+      <div class="row" id="sh_retry_row" hidden><span class="err" id="sh_retry_msg"></span><button type="button" class="btn dark" id="sh_retry">Retry sending to Sheet</button></div>
+    </section>
+
     <section class="panel">
       <h2>Edit a previous receipt</h2>
       <div class="edit-row">
@@ -279,18 +305,6 @@ textarea { min-height: 64px; resize: vertical; }
       <p class="hint" id="dcHint"></p>
     </section>
 
-    <section class="panel">
-      <h2>Google Sheet log</h2>
-      <p class="hint" style="margin:0 0 12px">Every downloaded bill is also written to the Velqura Bills Google Sheet. The link is built in; enter the password once on each device.</p>
-      <div class="grid">
-        <label class="f wide"><span>Web app URL</span><input id="sh_url" placeholder="https://script.google.com/macros/s/.../exec"></label>
-        <label class="f"><span>Password</span><input id="sh_key" type="password" autocomplete="off"></label>
-        <div class="f" style="justify-content:flex-end"><div class="row"><button type="button" class="btn" id="sh_save">Save</button><button type="button" class="btn" id="sh_test">Test connection</button></div></div>
-      </div>
-      <p class="hint" id="sh_status"></p>
-      <div class="row" id="sh_retry_row" hidden><span class="err" id="sh_retry_msg"></span><button type="button" class="btn dark" id="sh_retry">Retry sending to Sheet</button></div>
-    </section>
-
     <div class="actions">
       <div class="total"><small>Grand total</small><span id="aTotal">₹0.00</span></div>
       <span id="msg" role="status" aria-live="polite"></span>
@@ -372,6 +386,7 @@ textarea { min-height: 64px; resize: vertical; }
               <p id="dc_cgstin"></p>
             </div>
           </div>
+          <div class="dc-metas">
           <div class="meta">
             <div><div class="eb">Challan no.</div><div class="v" id="dc_no"></div></div>
             <div><div class="eb">Date</div><div class="v" id="dc_date"></div></div>
@@ -383,15 +398,20 @@ textarea { min-height: 64px; resize: vertical; }
             <div class="gst-doc"><div class="eb">Purpose</div><div class="v" id="dc_purpose"></div></div>
             <div class="gst-doc"><div class="eb">Place of supply</div><div class="v" id="dc_pos"></div></div>
           </div>
+          </div>
           <table>
             <thead id="dc_head"></thead>
             <tbody id="dc_rows"></tbody>
           </table>
-          <div class="totals" id="dc_totals"></div>
+          <div class="dc-bottom">
+          <div class="dc-left">
           <p class="dc-note" id="dc_note"></p>
           <div class="dc-sign">
             <div class="dc-box"><span class="eb">Receiver's signature &amp; stamp</span></div>
             <div class="auth" style="justify-content:flex-end"><div class="stamp"><span class="eb">Company stamp</span></div><div class="signline eb">For Velqura</div></div>
+          </div>
+          </div>
+          <div class="totals" id="dc_totals"></div>
           </div>
         </main>
         <footer><span class="ty" id="dc_foot">Delivery challan · not a tax invoice.</span><span>Please check the goods before signing.</span></footer>
@@ -831,7 +851,7 @@ textarea { min-height: 64px; resize: vertical; }
    * Builds an A5 PDF with one page per element. A page that is a little too tall is
    * shrunk to fit (down to 80%); anything longer continues onto extra pages.
    */
-  const PAGE_W = 148, PAGE_H = 210, MAX_SHRINK = 0.8;
+  const MAX_SHRINK = 0.8;
   const PDF_OPT = {
     margin: 0,
     image: { type: 'jpeg', quality: 0.98 },
@@ -839,7 +859,8 @@ textarea { min-height: 64px; resize: vertical; }
     jsPDF: { unit: 'mm', format: 'a5', orientation: 'portrait' },
   };
   /** Canvas of one element, as html2pdf would draw it. */
-  const toCanvas = (el) => html2pdf().set(PDF_OPT).from(el).toCanvas().get('canvas');
+  const toCanvas = (el, orientation) =>
+    html2pdf().set({ ...PDF_OPT, jsPDF: { ...PDF_OPT.jsPDF, orientation } }).from(el).toCanvas().get('canvas');
 
   /** White canvas of the given size with `src` drawn into it. */
   function pageCanvas(w, h, draw) {
@@ -851,7 +872,8 @@ textarea { min-height: 64px; resize: vertical; }
     return c;
   }
 
-  async function pdfFromElements(els, file) {
+  async function pdfFromElements(els, file, orientation = 'portrait') {
+    const [PAGE_W, PAGE_H] = orientation === 'landscape' ? [210, 148] : [148, 210];
     await document.fonts.ready;
     const pages = [];
     let W = 0, H = 0;
@@ -860,7 +882,7 @@ textarea { min-height: 64px; resize: vertical; }
     window.scrollTo(0, 0);
     try {
     for (const el of els) {
-      const c = await toCanvas(el);
+      const c = await toCanvas(el, orientation);
       if (!W) { W = c.width; H = Math.floor((W * PAGE_H) / PAGE_W); } // html2pdf's own page height in px
       if (c.height <= H * 1.003) {
         pages.push(pageCanvas(W, H, (ctx) => ctx.drawImage(c, 0, 0, W, Math.min(c.height, H))));
@@ -872,7 +894,7 @@ textarea { min-height: 64px; resize: vertical; }
       }
     }
     } finally { window.scrollTo(sx, sy); }
-    const pdf = new window.jspdf.jsPDF({ unit: 'mm', format: 'a5', orientation: 'portrait' });
+    const pdf = new window.jspdf.jsPDF({ unit: 'mm', format: 'a5', orientation });
     pages.forEach((pg, i) => {
       if (i) pdf.addPage();
       pdf.addImage(pg.toDataURL('image/jpeg', 0.95), 'JPEG', 0, 0, PAGE_W, PAGE_H);
@@ -888,7 +910,7 @@ textarea { min-height: 64px; resize: vertical; }
   /** One PDF with a page per copy (Original / Duplicate / Triplicate). */
   async function saveCopiesPdf(el, copies, file) {
     const box = document.createElement('div');
-    box.style.cssText = 'position:fixed;left:-10000px;top:0;width:148mm;background:#fff';
+    box.style.cssText = 'position:fixed;left:-10000px;top:0;width:210mm;background:#fff';
     for (let i = 0; i < copies; i++) {
       const page = el.cloneNode(true);
       page.hidden = false;
@@ -900,7 +922,7 @@ textarea { min-height: 64px; resize: vertical; }
     }
     document.body.appendChild(box);
     try {
-      return await pdfFromElements([...box.children], file);
+      return await pdfFromElements([...box.children], file, 'landscape');
     } finally {
       box.remove();
     }
