@@ -243,6 +243,13 @@ textarea { min-height: 64px; resize: vertical; }
 
     <section class="panel">
       <h2>Delivery challan</h2>
+      <div class="edit-row" style="margin-bottom:12px">
+        <label class="f"><span>Against receipt</span>
+          <select id="dc_pick"><option value="">This bill (on screen)</option></select>
+        </label>
+        <button type="button" class="btn" id="dc_list">Load past receipts</button>
+      </div>
+      <p class="hint" id="dc_pick_status">Pick a past receipt to fill the challan with its customer, products and prices.</p>
       <div class="row">
         <div class="seg" role="radiogroup" aria-label="Challan format">
           <label><input type="radio" name="dcfmt" value="gst" checked><span>GST format (Rule 55)</span></label>
@@ -762,6 +769,8 @@ textarea { min-height: 64px; resize: vertical; }
     shStatus(failed.length ? `${q.length - failed.length} sent, ${failed.length} still waiting. Reason: ${why}` : `All ${q.length} waiting bill${q.length > 1 ? 's' : ''} sent to Google Sheet.`, failed.length ? 'err' : 'ok');
   }
 
+  // The Sheet link and password live outside the bill; put them back after a form reset.
+  function restoreSheetFields() { $('sh_url').value = sheetConfig().url; $('sh_key').value = store.get(SH_KEY); }
   $('sh_url').value = sheetConfig().url;
   $('sh_key').value = store.get(SH_KEY);
   $('sh_save').addEventListener('click', () => {
@@ -801,6 +810,7 @@ textarea { min-height: 64px; resize: vertical; }
   function fresh() {
     $('form').reset();
     applyHsnPref();
+    restoreSheetFields();
     rows.innerHTML = '';
     $('r_no').value = nextNo();
     $('r_date').value = today();
@@ -936,18 +946,52 @@ textarea { min-height: 64px; resize: vertical; }
     return out;
   }
   function edStatus(text, cls = 'hint') { const el = $('ed_status'); el.className = cls; el.textContent = text; }
-  $('ed_list').addEventListener('click', async () => {
-    edStatus('Loading receipts from the Sheet…');
+  // Receipt list from the Sheet, shared by "Edit a previous receipt" and "Against receipt".
+  async function loadReceiptList(statusFn) {
+    statusFn('Loading receipts from the Sheet…');
     try {
       const { bills } = await sheetCall({ action: 'list' });
-      $('ed_pick').innerHTML = bills.length
-        ? bills.map(b => `<option value="${esc(b.receiptNo)}">${esc(b.receiptNo)} · ${esc(b.customer)} · ${esc(b.date)} · ${inr(Number(b.grand) || 0)}</option>`).join('')
-        : '<option value="">No receipts in the Sheet yet</option>';
-      edStatus(bills.length ? `${bills.length} receipt${bills.length > 1 ? 's' : ''} loaded, newest first.` : 'No receipts in the Sheet yet.', 'ok');
+      const opts = bills.map(b => `<option value="${esc(b.receiptNo)}">${esc(b.receiptNo)} · ${esc(b.customer)} · ${esc(b.date)} · ${inr(Number(b.grand) || 0)}</option>`).join('');
+      $('ed_pick').innerHTML = opts || '<option value="">No receipts in the Sheet yet</option>';
+      $('dc_pick').innerHTML = '<option value="">This bill (on screen)</option>' + opts;
+      statusFn(bills.length ? `${bills.length} receipt${bills.length > 1 ? 's' : ''} loaded, newest first.` : 'No receipts in the Sheet yet.', 'ok');
     } catch (e) {
-      edStatus(`Could not load the list (${/fetch|network/i.test(e.message) ? 'no connection' : e.message}).`, 'err');
+      statusFn(`Could not load the list (${/fetch|network/i.test(e.message) ? 'no connection' : e.message}).`, 'err');
+    }
+  }
+  function dcStatus(text, cls = 'hint') { const el = $('dc_pick_status'); el.className = cls; el.textContent = text; }
+  $('ed_list').addEventListener('click', () => loadReceiptList(edStatus));
+  $('dc_list').addEventListener('click', () => loadReceiptList(dcStatus));
+
+  // Picking a receipt fills customer, products and prices; challan settings stay as chosen.
+  $('dc_pick').addEventListener('change', async () => {
+    const no = $('dc_pick').value;
+    if (!no) { dcStatus('Using the bill on screen.'); return; }
+    dcStatus(`Loading ${no}…`);
+    const keep = {};
+    ['d_vehicle', 'd_by', 'd_purpose', 'd_pos', 'd_rate', 'd_copies'].forEach(id => (keep[id] = $(id).value));
+    keep.fmt = challanFormat();
+    keep.showTax = $('d_showtax').checked;
+    const typedDc = $('d_no').value.trim();
+    try {
+      const { bill } = await sheetCall({ action: 'get', receiptNo: no });
+      fillForm(bill);
+      sentReceipts.add(bill.receiptNo);
+      Object.entries(keep).forEach(([id, v]) => { if ($(id) && v) $(id).value = v; });
+      document.querySelector(`input[name="dcfmt"][value="${keep.fmt}"]`).checked = true;
+      $('d_showtax').checked = keep.showTax;
+      // Keep a challan no. already given to this receipt; otherwise whatever was typed (or the next number).
+      $('d_no').value = bill.challanNo || typedDc;
+      $('dc_pick').value = no;
+      render();
+      showTab('challan');
+      dcStatus(`Challan filled from ${no} (${bill.customer}). Check it, then Download challan.`, 'ok');
+    } catch (e) {
+      $('dc_pick').value = '';
+      dcStatus(`Could not load ${no} (${/fetch|network/i.test(e.message) ? 'no connection' : e.message}).`, 'err');
     }
   });
+
   $('ed_open').addEventListener('click', async () => {
     const no = $('ed_pick').value;
     if (!no) { edStatus('Load the list and pick a receipt first.', 'err'); return; }
@@ -965,6 +1009,7 @@ textarea { min-height: 64px; resize: vertical; }
   function fillForm(b) {
     $('form').reset();
     applyHsnPref();
+    restoreSheetFields();
     rows.innerHTML = '';
     $('c_name').value = b.customer || ''; $('c_phone').value = b.phone || ''; $('c_addr').value = b.address || '';
     $('c_gstin').value = b.customerGstin || ''; $('s_gstin').value = b.sellerGstin || '';
