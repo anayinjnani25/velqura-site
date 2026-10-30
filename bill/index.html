@@ -677,9 +677,9 @@ textarea { min-height: 64px; resize: vertical; }
 
   // ---------- Google Sheet log ----------
   // Built-in Velqura Bill Log deployment. Only the link is in the page; the password is typed once per device.
-  const DEFAULT_SHEET_URL = 'https://script.google.com/macros/s/AKfycbwYvU5FRjDfmAzrYpYpkzh97RLrI-z2Nm_1ReNVBbnFzikcASHJX-3Wq_v5fk51DwzA/exec';
-  // v2 keys: ignore links saved for older deployments.
-  const SH_URL = 'vq-bill-sheet-url-v2', SH_KEY = 'vq-bill-sheet-key', SH_QUEUE = 'vq-bill-sheet-queue';
+  const DEFAULT_SHEET_URL = 'https://script.google.com/macros/s/AKfycbyBzFOPasQv2EkQp3gCXwpWRh3rqIHhCD3hwkZAlV9FmIX78KjmRBYAHzyKg1aVjYSI/exec';
+  // v3 keys: ignore links saved for older deployments.
+  const SH_URL = 'vq-bill-sheet-url-v3', SH_KEY = 'vq-bill-sheet-key', SH_QUEUE = 'vq-bill-sheet-queue';
   const store = {
     get(k) { try { return localStorage.getItem(k) || ''; } catch (e) { return ''; } },
     set(k, v) { try { localStorage.setItem(k, v); } catch (e) {} },
