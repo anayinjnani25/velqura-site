@@ -855,6 +855,10 @@ textarea { min-height: 64px; resize: vertical; }
     await document.fonts.ready;
     const pages = [];
     let W = 0, H = 0;
+    // html2canvas draws a blank page when the window is scrolled, so capture from the top.
+    const sx = window.scrollX, sy = window.scrollY;
+    window.scrollTo(0, 0);
+    try {
     for (const el of els) {
       const c = await toCanvas(el);
       if (!W) { W = c.width; H = Math.floor((W * PAGE_H) / PAGE_W); } // html2pdf's own page height in px
@@ -867,6 +871,7 @@ textarea { min-height: 64px; resize: vertical; }
         for (let y = 0; y < c.height; y += H) pages.push(pageCanvas(W, H, (ctx) => ctx.drawImage(c, 0, -y)));
       }
     }
+    } finally { window.scrollTo(sx, sy); }
     const pdf = new window.jspdf.jsPDF({ unit: 'mm', format: 'a5', orientation: 'portrait' });
     pages.forEach((pg, i) => {
       if (i) pdf.addPage();
