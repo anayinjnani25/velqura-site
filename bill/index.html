@@ -223,7 +223,7 @@ textarea { min-height: 64px; resize: vertical; }
         </label>
         <label class="f"><span>Velqura GSTIN · optional</span><input id="s_gstin" placeholder="Shown on the bill when filled"></label>
       </div>
-      <label class="f wide" style="margin-top:12px"><span>Notes · optional, shown on the receipt, invoice and challan</span><textarea id="r_notes" placeholder="Leave blank for no notes"></textarea></label>
+      <label class="f wide" style="margin-top:12px"><span>Receipt notes · optional</span><textarea id="r_notes" placeholder="Leave blank for no notes"></textarea></label>
       <p class="hint" id="numHint"></p>
     </section>
 
@@ -280,6 +280,7 @@ textarea { min-height: 64px; resize: vertical; }
       <p class="hint" id="iv_pick_status">The invoice to send the customer: same as the receipt, without the payment mode. Pick a past receipt to fill it.</p>
       <div class="grid">
         <label class="f"><span>Invoice no.</span><input id="iv_no" placeholder="Given when you download the invoice"></label>
+        <label class="f wide"><span>Invoice notes · optional</span><textarea id="iv_notes" placeholder="Leave blank for no notes"></textarea></label>
       </div>
     </section>
 
@@ -318,6 +319,7 @@ textarea { min-height: 64px; resize: vertical; }
           <select id="d_rate"><option value="5">5%</option><option value="12">12%</option><option value="18" selected>18%</option><option value="28">28%</option></select>
         </label>
       </div>
+      <label class="f wide" style="margin-top:12px"><span>Challan notes · optional</span><textarea id="d_notes" placeholder="Leave blank for no notes"></textarea></label>
       <p class="hint" id="dcHint"></p>
     </section>
 
@@ -584,8 +586,11 @@ textarea { min-height: 64px; resize: vertical; }
     const d = $('r_date').value;
     $('p_date').textContent = d ? d.split('-').reverse().join('-') : '';
     $('p_pay').textContent = $('r_pay').value;
-    const notes = $('r_notes').value.trim();
-    ['p_notes', 'dc_notes'].forEach(id => { $(id).hidden = !notes; $(id).querySelector('.nt').textContent = notes; });
+    // Each document has its own notes; an empty box prints nothing.
+    [['p_notes', 'r_notes'], ['dc_notes', 'd_notes']].forEach(([id, src]) => {
+      const notes = $(src).value.trim();
+      $(id).hidden = !notes; $(id).querySelector('.nt').textContent = notes;
+    });
 
     const showHsn = $('opt_hsn').checked;
     document.querySelector('.items').classList.toggle('no-hsn', !showHsn);
@@ -652,6 +657,8 @@ textarea { min-height: 64px; resize: vertical; }
     inv.innerHTML = $('receipt').innerHTML;
     inv.querySelectorAll('[id]').forEach(n => n.removeAttribute('id'));
     inv.querySelector('.t').textContent = 'INVOICE';
+    const ivNotes = $('iv_notes').value.trim(), nb = inv.querySelector('.notes');
+    nb.hidden = !ivNotes; nb.querySelector('.nt').textContent = ivNotes;
     const from = inv.querySelectorAll('.parties > div:first-child p');
     from[0].textContent = 'Om Enterprises';
     from[1].textContent = 'Parandwadi, At Post Urse, Maval, Pune 410506';
