@@ -158,6 +158,7 @@ textarea { min-height: 64px; resize: vertical; }
 .rc .totals div { display: flex; justify-content: space-between; gap: 4mm; padding: 1.1mm 0; }
 .rc .totals .grand { border-top: 2px solid var(--rc-ink); margin-top: 1mm; padding-top: 2mm; font: 900 11.5pt/1.3 var(--font-display); }
 .rc .words { margin-top: 3mm; padding: 2.4mm 3mm; border-left: 1mm solid var(--rc-blue); background: var(--rc-zebra); }
+.rc .notes { margin-top: 2.5mm; padding: 2mm 3mm; border: 1px solid var(--rc-line); font-size: 7.6pt; white-space: pre-line; }
 .rc .words b { font-family: var(--font-display); }
 .rc .tax { margin-top: 2mm; font-size: 7.2pt; color: var(--rc-muted); }
 .rc .sign { margin-top: auto; padding-top: 6mm; display: flex; justify-content: space-between; align-items: flex-end; padding-bottom: 5mm; }
@@ -222,6 +223,7 @@ textarea { min-height: 64px; resize: vertical; }
         </label>
         <label class="f"><span>Velqura GSTIN · optional</span><input id="s_gstin" placeholder="Shown on the bill when filled"></label>
       </div>
+      <label class="f wide" style="margin-top:12px"><span>Notes · optional, shown on the receipt, invoice and challan</span><textarea id="r_notes" placeholder="Leave blank for no notes"></textarea></label>
       <p class="hint" id="numHint"></p>
     </section>
 
@@ -372,6 +374,7 @@ textarea { min-height: 64px; resize: vertical; }
           <div class="totals" id="p_totals"></div>
           <div class="words"><span class="eb">Amount in words</span><br><b id="p_words"></b></div>
           <p class="tax" id="p_tax"></p>
+          <div class="notes" id="p_notes" hidden><span class="eb">Notes</span><br><span class="nt"></span></div>
           <div class="sign">
             <div class="qr"><img src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI0MTAiIGhlaWdodD0iNDEwIiB2aWV3Qm94PSIwIDAgNDEwIDQxMCIgY2xhc3M9InNlZ25vIj48dGl0bGU+VmVscXVyYSBQcm9kdWN0IEJyb2NodXJlIDIwMjY8L3RpdGxlPjxnIHRyYW5zZm9ybT0ic2NhbGUoMTApIj48cGF0aCBmaWxsPSIjZmZmIiBkPSJNMCAwaDQxdjQxaC00MXoiLz48cGF0aCBjbGFzcz0icXJsaW5lIiBzdHJva2U9IiMxZTIwMjQiIGQ9Ik00IDQuNWg3bTEgMGgzbTUgMGgxbTEgMGgybTMgMGgxbTIgMGg3bS0zMyAxaDFtNSAwaDFtMSAwaDFtNSAwaDFtMiAwaDJtMiAwaDRtMSAwaDFtNSAwaDFtLTMzIDFoMW0xIDBoM20xIDBoMW01IDBoNG0yIDBoM201IDBoMW0xIDBoM20xIDBoMW0tMzMgMWgxbTEgMGgzbTEgMGgxbTEgMGg1bTQgMGgybTMgMGgzbTEgMGgxbTEgMGgzbTEgMGgxbS0zMyAxaDFtMSAwaDNtMSAwaDFtNiAwaDFtMiAwaDFtMiAwaDFtMSAwaDFtNCAwaDFtMSAwaDNtMSAwaDFtLTMzIDFoMW01IDBoMW0yIDBoM20xIDBoMW0xIDBoNW0xIDBoMW0yIDBoMW0xIDBoMW01IDBoMW0tMzMgMWg3bTEgMGgxbTEgMGgxbTEgMGgxbTEgMGgxbTEgMGgxbTEgMGgxbTEgMGgxbTEgMGgxbTEgMGgxbTEgMGg3bS0yNSAxaDFtMSAwaDFtMSAwaDFtMiAwaDNtMSAwaDJtMiAwaDJtLTI1IDFoMW0xIDBoMm0xIDBoM20xIDBoMW0xIDBoMW0yIDBoOG00IDBoMW0yIDBoMW0xIDBoMm0tMzMgMWg0bTUgMGgxbTEgMGgxbTEgMGgxbTMgMGgzbTEgMGgxbTEgMGgxbTIgMGgybTEgMGgybTEgMGgxbS0zMyAxaDJtMSAwaDJtMSAwaDFtMyAwaDFtMiAwaDFtNCAwaDFtMSAwaDJtMSAwaDJtMSAwaDRtMSAwaDJtLTMxIDFoMm0xIDBoMW0yIDBoMW0xIDBoMW0xIDBoMW0yIDBoMm0xIDBoMW0zIDBoMW00IDBoMW0xIDBoMW0xIDBoMm0tMzIgMWg2bTIgMGg0bTEgMGgzbTEgMGgxbTEgMGgxbTEgMGgzbTIgMGgzbTEgMGgxbS0zMSAxaDFtMSAwaDFtNSAwaDFtMSAwaDFtMSAwaDJtMiAwaDFtMSAwaDFtMSAwaDJtMSAwaDFtMiAwaDFtMyAwaDFtLTMyIDFoMW00IDBoMm0zIDBoMW0yIDBoMW0zIDBoNm0zIDBoMW0yIDBoMW0tMzAgMWgxbTIgMGgybTggMGgzbTQgMGgybTMgMGgzbTEgMGgybS0zMCAxaDFtMSAwaDRtMSAwaDRtMiAwaDFtMyAwaDFtMiAwaDZtMSAwaDNtLTMxIDFoMm01IDBoMW0xIDBoMm0xIDBoMW0yIDBoMW02IDBoNW0xIDBoMm0yIDBoMW0tMzAgMWgxbTIgMGgybTMgMGgxbTEgMGg0bTEgMGgxbTEgMGgxbTQgMGg0bTEgMGgybS0zMiAxaDFtMSAwaDJtMyAwaDJtMSAwaDFtMSAwaDJtMiAwaDJtMiAwaDFtMiAwaDFtMSAwaDJtMSAwaDFtMiAwaDFtLTMxIDFoMW0xIDBoMW0yIDBoMW0yIDBoMW0xIDBoNG0xIDBoMW0zIDBoMm0yIDBoMW0yIDBoMW0xIDBoMm0xIDBoMW0tMzMgMWgzbTEgMGgxbTIgMGgzbTQgMGg3bTIgMGgxbTEgMGgybTIgMGgxbTIgMGgxbS0zMSAxaDFtMiAwaDNtMSAwaDJtMSAwaDJtMSAwaDFtMSAwaDFtMiAwaDVtMSAwaDJtMSAwaDFtMSAwaDJtLTMyIDFoMm0xIDBoMW0zIDBoMW0xIDBoMW0xIDBoNG0yIDBoMm0yIDBoMW00IDBoM20xIDBoMm0tMzMgMWgxbTMgMGgxbTEgMGgxbTEgMGgxbTEgMGgxbTEgMGgxbTMgMGgybTEgMGgxbTIgMGg4bTEgMGgxbS0yNCAxaDFtMSAwaDNtMiAwaDJtMSAwaDJtMSAwaDFtMSAwaDJtMyAwaDJtLTMwIDFoN20xIDBoMm0xIDBoNG0xIDBoNG0xIDBoMW0xIDBoMm0xIDBoMW0xIDBoMW0yIDBoMW0tMzIgMWgxbTUgMGgxbTEgMGgxbTIgMGgybTEgMGgybTEgMGg4bTMgMGg1bS0zMyAxaDFtMSAwaDNtMSAwaDFtNiAwaDE2bTEgMGgybS0zMiAxaDFtMSAwaDNtMSAwaDFtMSAwaDJtNCAwaDFtMSAwaDFtMyAwaDFtMSAwaDFtMSAwaDFtMiAwaDFtNCAwaDFtLTMzIDFoMW0xIDBoM20xIDBoMW0xIDBoM20xIDBoNW0zIDBoMm0xIDBoMW0yIDBoMm0xIDBoMm0tMzEgMWgxbTUgMGgxbTYgMGgxbTMgMGgxbTEgMGgybTEgMGgzbTEgMGgzbTMgMGgxbS0zMyAxaDdtMSAwaDFtMSAwaDJtNCAwaDRtMSAwaDFtMSAwaDFtMiAwaDFtMSAwaDMiLz48L2c+PC9zdmc+Cg==" alt="QR: Velqura Product Brochure 2026"><div class="cap"><b>Product brochure</b>Scan to view our full range. Not a payment QR.</div></div>
             <div class="auth"><div class="stamp"><span class="eb">Company stamp</span></div><div class="signline eb">Authorised signatory</div></div>
@@ -423,6 +426,7 @@ textarea { min-height: 64px; resize: vertical; }
           <div class="dc-bottom">
           <div class="dc-left">
           <p class="dc-note" id="dc_note"></p>
+          <div class="notes" id="dc_notes" hidden><span class="eb">Notes</span><br><span class="nt"></span></div>
           <div class="dc-sign">
             <div class="dc-box"><span class="eb">Receiver's signature &amp; stamp</span></div>
             <div class="auth" style="justify-content:flex-end"><div class="stamp"><span class="eb">Company stamp</span></div><div class="signline eb">For Velqura</div></div>
@@ -580,6 +584,8 @@ textarea { min-height: 64px; resize: vertical; }
     const d = $('r_date').value;
     $('p_date').textContent = d ? d.split('-').reverse().join('-') : '';
     $('p_pay').textContent = $('r_pay').value;
+    const notes = $('r_notes').value.trim();
+    ['p_notes', 'dc_notes'].forEach(id => { $(id).hidden = !notes; $(id).querySelector('.nt').textContent = notes; });
 
     const showHsn = $('opt_hsn').checked;
     document.querySelector('.items').classList.toggle('no-hsn', !showHsn);
