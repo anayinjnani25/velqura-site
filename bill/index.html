@@ -305,8 +305,8 @@ textarea { min-height: 64px; resize: vertical; }
             <option value="3" selected>3 · + Triplicate for consignor</option>
           </select>
         </label>
-        <label class="f"><span>Vehicle no. · optional</span><input id="d_vehicle" placeholder="MH 14 AB 1234"></label>
-        <label class="f"><span>Delivered by · optional</span><input id="d_by" placeholder="Driver or transporter name"></label>
+        <label class="f"><span>Dispatch date · optional</span><input id="d_dispatch" type="date"></label>
+        <label class="f"><span>Delivery date · optional</span><input id="d_delivery" type="date"></label>
         <label class="f gst-only"><span>Purpose of transport</span>
           <select id="d_purpose"><option>Supply (sale)</option><option>Job work</option><option>Sale on approval</option><option>Stock transfer (other than supply)</option><option>Other</option></select>
         </label>
@@ -410,8 +410,8 @@ textarea { min-height: 64px; resize: vertical; }
             <div><div class="eb">Against receipt</div><div class="v" id="dc_rno"></div></div>
           </div>
           <div class="meta meta-4">
-            <div><div class="eb">Vehicle no.</div><div class="v" id="dc_vehicle"></div></div>
-            <div><div class="eb">Delivered by</div><div class="v" id="dc_by"></div></div>
+            <div><div class="eb">Dispatch date</div><div class="v" id="dc_dispatch"></div></div>
+            <div><div class="eb">Delivery date</div><div class="v" id="dc_delivery"></div></div>
             <div class="gst-doc"><div class="eb">Purpose</div><div class="v" id="dc_purpose"></div></div>
             <div class="gst-doc"><div class="eb">Place of supply</div><div class="v" id="dc_pos"></div></div>
           </div>
@@ -671,6 +671,8 @@ textarea { min-height: 64px; resize: vertical; }
     return { rate, inter, lines, taxable, tax, value: r2(taxable + tax) };
   }
 
+  const dmy = (iso) => (iso ? iso.split('-').reverse().join('-') : '');
+  const isoOf = (d) => { const m = /^(\d{2})-(\d{2})-(\d{4})$/.exec(d || ''); return m ? `${m[3]}-${m[2]}-${m[1]}` : ''; };
   function renderChallan(valid, qtyText, addGst) {
     const gst = challanFormat() === 'gst';
     const showHsn = $('opt_hsn').checked;
@@ -678,8 +680,8 @@ textarea { min-height: 64px; resize: vertical; }
     same('p_cname', 'dc_cname'); same('p_caddr', 'dc_caddr'); same('p_cphone', 'dc_cphone'); same('p_cgstin', 'dc_cgstin'); same('p_sgstin', 'dc_sgstin');
     same('p_date', 'dc_date'); same('p_no', 'dc_rno');
     $('dc_no').textContent = $('d_no').value.trim() || nextChallanNo();
-    $('dc_vehicle').textContent = $('d_vehicle').value.trim();
-    $('dc_by').textContent = $('d_by').value.trim();
+    $('dc_dispatch').textContent = dmy($('d_dispatch').value);
+    $('dc_delivery').textContent = dmy($('d_delivery').value);
     $('dc_purpose').textContent = $('d_purpose').value;
     $('dc_pos').textContent = $('d_pos').value.trim();
     document.querySelectorAll('.gst-only').forEach(el => { el.hidden = !gst; });
@@ -778,8 +780,8 @@ textarea { min-height: 64px; resize: vertical; }
       totalQty: qtyText,
       invoiceNo: $('iv_no').value.trim(),
       challanNo: $('d_no').value.trim(),
-      vehicle: $('d_vehicle').value.trim(),
-      deliveredBy: $('d_by').value.trim(),
+      dispatchDate: dmy($('d_dispatch').value),
+      deliveryDate: dmy($('d_delivery').value),
       purpose: challanFormat() === 'gst' ? $('d_purpose').value : '',
       placeOfSupply: challanFormat() === 'gst' ? $('d_pos').value.trim() : '',
       totals: { taxable: tax.taxable, cgst: tax.cgst, sgst: tax.sgst, igst: tax.igst, grand },
@@ -799,25 +801,28 @@ textarea { min-height: 64px; resize: vertical; }
     return out;
   }
 
+  // Queue entries are bills (by receipt no.) or challans / invoices (by their own no.).
+  const qid = (b) => (b.action === 'doc' ? b.doc.no : b.receiptNo);
   function queue() { try { return JSON.parse(store.get(SH_QUEUE) || '[]'); } catch (e) { return []; } }
   function setQueue(q) {
     store.set(SH_QUEUE, JSON.stringify(q));
     $('sh_retry_row').hidden = q.length === 0;
-    $('sh_retry_msg').textContent = q.length ? `${q.length} bill${q.length > 1 ? 's' : ''} not yet in the Sheet (${q.map(b => b.receiptNo).join(', ')}).` : '';
+    $('sh_retry_msg').textContent = q.length ? `${q.length} bill${q.length > 1 ? 's' : ''} not yet in the Sheet (${q.map(qid).join(', ')}).` : '';
   }
 
   async function logBill(payload) {
-    const q = queue().filter(b => b.receiptNo !== payload.receiptNo);
+    const id = qid(payload);
+    const q = queue().filter(b => qid(b) !== id);
     if (!sheetConfig().url) {
       setQueue([...q, payload]);
       shStatus('Google Sheet is not set up yet. The bill is kept here and sent once you add the URL and key.', 'err');
       return;
     }
-    shStatus(`Sending ${payload.receiptNo} to Google Sheet...`);
+    shStatus(`Sending ${id} to Google Sheet...`);
     try {
       const out = await send(payload);
       setQueue(q);
-      shStatus(`${payload.receiptNo} ${out.replaced ? 'updated in' : 'added to'} Google Sheet.`, 'ok');
+      shStatus(`${id} ${out.replaced ? 'updated in' : 'added to'} Google Sheet.`, 'ok');
     } catch (err) {
       setQueue([...q, payload]);
       const why = /fetch|network/i.test(err.message) ? 'no connection' : err.message;
@@ -999,8 +1004,10 @@ textarea { min-height: 64px; resize: vertical; }
       rememberInvoice(no);
       msg.className = 'ok';
       msg.textContent = `Saved ${file}.`;
+      const bill = buildPayload($('r_no').value.trim());
       // Keep the Sheet's copy of this receipt in step (adds the invoice no.).
-      if (sentReceipts.has($('r_no').value.trim())) logBill(buildPayload($('r_no').value.trim()));
+      if (sentReceipts.has(bill.receiptNo)) await logBill(bill);
+      logBill({ ...bill, action: 'doc', doc: { type: 'invoice', no } });
     } catch (err) {
       msg.className = 'err';
       msg.textContent = 'Could not make the invoice PDF. Try again, or reload the page.';
@@ -1025,8 +1032,13 @@ textarea { min-height: 64px; resize: vertical; }
       rememberChallan(dc);
       msg.className = 'ok';
       msg.textContent = `Saved ${file} (${copies} cop${copies > 1 ? 'ies' : 'y'}).`;
+      const bill = buildPayload($('r_no').value.trim());
       // Keep the Sheet's copy of this receipt in step (adds the challan no.).
-      if (sentReceipts.has($('r_no').value.trim())) logBill(buildPayload($('r_no').value.trim()));
+      if (sentReceipts.has(bill.receiptNo)) await logBill(bill);
+      const gst = challanFormat() === 'gst';
+      const { valid, addGst } = render();
+      const value = !gst ? '' : $('d_showtax').checked ? challanTax(valid, addGst).value : r2(valid.reduce((a, it) => a + it.amount, 0));
+      logBill({ ...bill, action: 'doc', doc: { type: 'challan', no: dc, copies, format: gst ? 'GST (Rule 55)' : 'Simple', value } });
     } catch (err) {
       msg.className = 'err';
       msg.textContent = 'Could not make the challan PDF. Try again, or reload the page.';
@@ -1093,7 +1105,7 @@ textarea { min-height: 64px; resize: vertical; }
     if (!no) { dcStatus('Using the bill on screen.'); return; }
     dcStatus(`Loading ${no}…`);
     const keep = {};
-    ['d_vehicle', 'd_by', 'd_purpose', 'd_pos', 'd_rate', 'd_copies'].forEach(id => (keep[id] = $(id).value));
+    ['d_dispatch', 'd_delivery', 'd_purpose', 'd_pos', 'd_rate', 'd_copies'].forEach(id => (keep[id] = $(id).value));
     keep.fmt = challanFormat();
     keep.showTax = $('d_showtax').checked;
     const typedDc = $('d_no').value.trim();
@@ -1141,7 +1153,7 @@ textarea { min-height: 64px; resize: vertical; }
     const d = /^(\d{2})-(\d{2})-(\d{4})$/.exec(b.date || '');
     $('r_date').value = d ? `${d[3]}-${d[2]}-${d[1]}` : today();
     $('iv_no').value = b.invoiceNo || '';
-    $('d_no').value = b.challanNo || ''; $('d_vehicle').value = b.vehicle || ''; $('d_by').value = b.deliveredBy || '';
+    $('d_no').value = b.challanNo || ''; $('d_dispatch').value = isoOf(b.dispatchDate); $('d_delivery').value = isoOf(b.deliveryDate);
     document.querySelector(`input[name="gst"][value="${b.gst === 'add' ? 'add' : 'none'}"]`).checked = true;
     if (b.gst === 'add') { $('g_rate').value = String(b.gstRate || 18); $('g_type').value = b.supply === 'inter' ? 'inter' : 'intra'; }
     if (b.purpose) $('d_purpose').value = b.purpose;
